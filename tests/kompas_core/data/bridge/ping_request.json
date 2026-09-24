@@ -1,0 +1,6 @@
+{
+  "protocol_version": "1.0",
+  "request_id": "test-ping-request",
+  "command": "bridge.ping",
+  "arguments": {}
+}

@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "name": "KOMPAS API5 x64",
+            "includePath": [
+                "${workspaceFolder}/src/kompas_bridge/include",
+                "${workspaceFolder}/src/kompas_bridge/src",
+                "D:/Programs/Compas 3d v24/SDK/Include",
+                "C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC/14.44.35207/atlmfc/include"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "windowsSdkVersion": "10.0.26100.0",
+            "compilerPath": "C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "windows-msvc-x64"
+        }
+    ],
+    "version": 4
+}

@@ -1,0 +1,7 @@
+{
+  "request_id": "test-ping-request",
+  "ok": true,
+  "result": {
+    "status": "ready"
+  }
+}

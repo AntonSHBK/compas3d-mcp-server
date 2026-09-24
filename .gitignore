@@ -1,0 +1,12 @@
+/.dockerignore
+/.env
+/venv
+/__pycache__/
+/.pycache
+**cache_dir
+**__pycache__
+.pytest_cache
+
+backups
+other
+build
