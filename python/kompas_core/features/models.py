@@ -57,6 +57,7 @@ class FeatureState:
     """User-visible state of a generated feature."""
 
     kind: FeatureKind
+    extrusion: ExtrusionParameters | None = None
 
 
 @dataclass(frozen=True, slots=True)

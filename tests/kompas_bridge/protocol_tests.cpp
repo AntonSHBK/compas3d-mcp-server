@@ -54,8 +54,9 @@ int main() {
   expect_code([] { (void)parse_request("{"); }, "invalid_request");
   expect_code([] { (void)parse_request(R"({"protocol_version":2,"id":"x","method":"document.list","params":{}})"); },
               "unsupported_protocol_version");
-  expect_code([] { (void)parse_request(R"({"protocol_version":1,"id":"x","method":"arbitrary.exec","params":{}})"); },
-              "unknown_method");
+  const auto extensibleRequest = parse_request(
+      R"({"protocol_version":1,"id":"x","method":"arbitrary.exec","params":{}})");
+  CHECK(extensibleRequest.method == "arbitrary.exec");
   expect_code([] { (void)parse_request(R"({"protocol_version":1,"id":"x","method":"document.list","params":[]})"); },
               "invalid_params");
   expect_code([] { (void)decode_frame({}); }, "invalid_request");

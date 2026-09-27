@@ -15,6 +15,7 @@ from kompas_core import (
     Sketch,
     SketchPlane,
     connect,
+    create_cube,
 )
 from kompas_core.ports import BridgeGateway
 from tests.kompas_core.factories import (
@@ -37,6 +38,7 @@ def test_sketch_and_extrusion_flow_uses_typed_public_objects() -> None:
             application_status_result(),
             document_result(),
             {"document_id": "doc_1", "part_id": "part_1"},
+            sketch_result(closed=True),
             sketch_result(),
             sketch_result(geometry_count=1),
             sketch_result(closed=True, geometry_count=1),
@@ -82,6 +84,7 @@ def test_line_rejects_equal_endpoints_before_bridge_call() -> None:
             application_status_result(),
             document_result(),
             {"document_id": "doc_1", "part_id": "part_1"},
+            sketch_result(closed=True),
             sketch_result(),
         ]
     )
@@ -102,6 +105,7 @@ def test_extrusion_requires_closed_sketch() -> None:
             application_status_result(),
             document_result(),
             {"document_id": "doc_1", "part_id": "part_1"},
+            sketch_result(closed=True),
             sketch_result(),
         ]
     )
@@ -116,3 +120,37 @@ def test_extrusion_requires_closed_sketch() -> None:
             direction=ExtrusionDirection.REVERSE,
             operation=BooleanOperation.CUT,
         )
+
+
+def test_cube_recipe_updates_depth_and_rebuilds_without_recreating_document() -> None:
+    client = FakeBridgeClient()
+    client.responses.extend(
+        [
+            application_status_result(),
+            document_result(),
+            {"document_id": "doc_1", "part_id": "part_1"},
+            sketch_result(closed=True),
+            sketch_result(),
+            sketch_result(geometry_count=1),
+            sketch_result(geometry_count=2),
+            sketch_result(geometry_count=3),
+            sketch_result(geometry_count=4),
+            sketch_result(closed=True, geometry_count=4),
+            feature_result(),
+            feature_result(distance=80.0),
+            {"part_id": "part_1", "rebuilt": True},
+        ]
+    )
+    application = connect(bridge_client=cast(BridgeClient, client))
+    part = application.active_document().top_part()
+
+    feature = create_cube(part, 50.0)
+    feature.set_depth(80.0)
+    part.rebuild()
+
+    assert feature.state.extrusion is not None
+    assert feature.state.extrusion.distance == 80.0
+    methods = [method for method, _ in client.requests]
+    assert methods.count("document.get_active") == 1
+    assert methods.count("sketch.add_line") == 4
+    assert methods[-2:] == ["feature.update_extrusion", "model.rebuild"]

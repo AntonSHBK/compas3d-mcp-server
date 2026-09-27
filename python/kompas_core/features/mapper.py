@@ -4,7 +4,14 @@ from kompas_bridge_transport import DocumentHandle, FeatureHandle
 
 from kompas_core.common.errors import CoreProtocolError
 from kompas_core.common.types import JsonObject
-from kompas_core.features.models import FeatureData, FeatureKind, FeatureState
+from kompas_core.features.models import (
+    BooleanOperation,
+    ExtrusionDirection,
+    ExtrusionParameters,
+    FeatureData,
+    FeatureKind,
+    FeatureState,
+)
 
 
 def map_feature(data: JsonObject) -> FeatureData:
@@ -16,12 +23,24 @@ def map_feature(data: JsonObject) -> FeatureData:
         feature_handle = FeatureHandle(feature_id)
         document_handle = DocumentHandle(document_id)
         kind = FeatureKind(kind_value)
+        extrusion = None
+        if kind is FeatureKind.EXTRUSION:
+            distance = data.get("distance")
+            direction = data.get("direction")
+            operation = data.get("operation")
+            if not isinstance(distance, (int, float)) or isinstance(distance, bool):
+                raise ValueError("distance must be numeric")
+            extrusion = ExtrusionParameters(
+                distance=float(distance),
+                direction=ExtrusionDirection(direction),
+                operation=BooleanOperation(operation),
+            )
     except ValueError as error:
         raise CoreProtocolError("Feature response contains an invalid value.") from error
     return FeatureData(
         handle=feature_handle,
         document_handle=document_handle,
-        state=FeatureState(kind=kind),
+        state=FeatureState(kind=kind, extrusion=extrusion),
     )
 
 

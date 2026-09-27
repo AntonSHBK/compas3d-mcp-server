@@ -52,6 +52,22 @@ class LineSegment:
 
 
 @dataclass(frozen=True, slots=True)
+class Circle:
+    """Validated circle added to a sketch."""
+
+    center: Point2D
+    radius: float
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.center, Point2D):
+            raise ValueError("Circle center must be a Point2D value.")
+        if isinstance(self.radius, bool) or not isinstance(self.radius, Real):
+            raise ValueError("Circle radius must be a finite number.")
+        if not isfinite(self.radius) or self.radius <= 0:
+            raise ValueError("Circle radius must be positive and finite.")
+
+
+@dataclass(frozen=True, slots=True)
 class CreateSketchParameters:
     """Parameters for creating a sketch on a standard plane."""
 

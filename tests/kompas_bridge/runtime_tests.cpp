@@ -1,9 +1,9 @@
 #include "kompas_bridge/app/request_dispatcher.hpp"
 #include "kompas_bridge/app/request_loop.hpp"
+#include "kompas_bridge/app/routes/application_routes.hpp"
 #include "kompas_bridge/handlers/application_handler.hpp"
-#include "kompas_bridge/handlers/object_handler.hpp"
 #include "kompas_bridge/kompas/application_service.hpp"
-#include "kompas_bridge/kompas/object_registry.hpp"
+#include "kompas_bridge/protocol/codec.hpp"
 #include "kompas_bridge/protocol/response.hpp"
 #include "kompas_bridge/transport/transport.hpp"
 
@@ -87,9 +87,8 @@ class FakeApplicationService final : public kompas_bridge::ApplicationService {
 int main() {
   FakeApplicationService service;
   kompas_bridge::ApplicationHandler handler(service);
-  kompas_bridge::ObjectRegistry registry;
-  kompas_bridge::ObjectHandler objectHandler(registry);
-  kompas_bridge::RequestDispatcher dispatcher(handler, objectHandler);
+  kompas_bridge::RequestDispatcher dispatcher;
+  kompas_bridge::register_application_routes(dispatcher, handler);
   FakeTransport transport({
       R"({"protocol_version":1,"id":"one","method":"application.status","params":{}})",
       R"({"protocol_version":1,"id":"connect","method":"application.connect","params":{}})",
@@ -99,12 +98,13 @@ int main() {
       R"({"protocol_version":1,"id":"third","method":"application.status","params":{}})",
       R"({"protocol_version":1,"id":"start","method":"application.connect","params":{"policy":"start_new"}})",
       R"({"protocol_version":1,"id":"attach_or_start","method":"application.connect","params":{"policy":"attach_or_start"}})",
-      R"({"protocol_version":1,"id":"invalid_policy","method":"application.connect","params":{"policy":"other"}})"});
+      R"({"protocol_version":1,"id":"invalid_policy","method":"application.connect","params":{"policy":"other"}})",
+      R"({"protocol_version":1,"id":"unknown","method":"arbitrary.exec","params":{}})"});
 
   kompas_bridge::run_request_loop(transport, dispatcher);
 
   const auto& responses = transport.responses();
-  check(responses.size() == 9);
+  check(responses.size() == 10);
   const auto first = kompas_bridge::parse_response(responses[0]);
   const auto initialConnect = kompas_bridge::parse_response(responses[1]);
   const auto second = kompas_bridge::parse_response(responses[2]);
@@ -114,6 +114,7 @@ int main() {
   const auto started = kompas_bridge::parse_response(responses[6]);
   const auto attachOrStart = kompas_bridge::parse_response(responses[7]);
   const auto invalidPolicy = kompas_bridge::parse_response(responses[8]);
+  const auto unknown = kompas_bridge::parse_response(responses[9]);
   check(first.ok && first.id == "one" && (*first.result)["connected"] == false);
   check((*first.result)["visible"].is_null());
   check(initialConnect.ok && (*initialConnect.result)["connected"] == true);
@@ -126,6 +127,7 @@ int main() {
   check(started.ok && (*started.result)["connected"] == true);
   check(attachOrStart.ok && (*attachOrStart.result)["connected"] == true);
   check(!invalidPolicy.ok && invalidPolicy.error->code == "invalid_params");
+  check(!unknown.ok && unknown.error->code == "unknown_method");
   check(service.connectCalls == 3);
   check(service.disconnectCalls == 1);
   check(service.lastPolicy ==

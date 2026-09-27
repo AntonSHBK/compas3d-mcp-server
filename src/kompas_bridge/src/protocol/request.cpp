@@ -1,7 +1,6 @@
 #include "kompas_bridge/protocol/request.hpp"
 
 #include "kompas_bridge/protocol/codec.hpp"
-#include "kompas_bridge/protocol/method.hpp"
 
 namespace kompas_bridge {
 
@@ -20,11 +19,8 @@ void validate_request(const Request& request) {
       "Invalid request id."
     );
   }
-  if (!is_supported_method(request.method)) {
-    throw ProtocolError(
-      "unknown_method",
-      "Unknown method."
-    );
+  if (request.method.empty()) {
+    throw ProtocolError("invalid_request", "Method cannot be empty.");
   }
   if (!request.params.is_object()) {
     throw ProtocolError(

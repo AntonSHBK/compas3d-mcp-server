@@ -17,7 +17,6 @@ add_library(kompas_bridge_protocol STATIC
   src/protocol/error_code.cpp
   src/protocol/request.cpp
   src/protocol/response.cpp
-  src/protocol/method.cpp
 )
 target_include_directories(kompas_bridge_protocol PUBLIC
   include
@@ -28,9 +27,16 @@ target_compile_features(kompas_bridge_protocol PUBLIC cxx_std_20)
 add_library(kompas_bridge_runtime STATIC
   src/app/request_dispatcher.cpp
   src/app/request_loop.cpp
+  src/app/routes/application_routes.cpp
+  src/app/routes/document_routes.cpp
+  src/app/routes/feature_routes.cpp
+  src/app/routes/object_routes.cpp
+  src/app/routes/sketch_routes.cpp
   src/handlers/application_handler.cpp
   src/handlers/object_handler.cpp
   src/handlers/document_handler.cpp
+  src/handlers/feature_handler.cpp
+  src/handlers/sketch_handler.cpp
   src/kompas/object_registry.cpp
   src/transport/stdio_transport.cpp
 )
@@ -42,8 +48,6 @@ target_compile_features(kompas_bridge_runtime PUBLIC cxx_std_20)
 add_executable(kompas_bridge
   src/main.cpp
   src/app/bridge_application.cpp
-  src/handlers/sketch_handler.cpp
-  src/handlers/feature_handler.cpp
   src/transport/transport.cpp
   src/transport/named_pipe_server.cpp
   src/kompas/api5_application_factory.cpp

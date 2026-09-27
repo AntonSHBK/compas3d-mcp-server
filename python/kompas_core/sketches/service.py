@@ -3,8 +3,10 @@
 from kompas_bridge_transport import DocumentHandle, PartHandle, SketchHandle
 
 from kompas_core._internal.session import CoreSession
+from kompas_core.common.errors import CoreProtocolError
 from kompas_core.sketches.mapper import map_sketch
 from kompas_core.sketches.models import (
+    Circle,
     CreateSketchParameters,
     LineSegment,
     SketchData,
@@ -31,6 +33,10 @@ class SketchService:
                 "plane": parameters.plane.value,
             },
         )
+        result = self._session.call(
+            "sketch.begin_edit",
+            {"sketch_id": _sketch_id(result)},
+        )
         return map_sketch(result)
 
     def add_line(self, handle: SketchHandle, line: LineSegment) -> SketchData:
@@ -44,9 +50,27 @@ class SketchService:
         )
         return map_sketch(result)
 
+    def add_circle(self, handle: SketchHandle, circle: Circle) -> SketchData:
+        result = self._session.call(
+            "sketch.add_circle",
+            {
+                "sketch_id": handle.value,
+                "center": {"x": circle.center.x, "y": circle.center.y},
+                "radius": circle.radius,
+            },
+        )
+        return map_sketch(result)
+
     def close(self, handle: SketchHandle) -> SketchData:
         result = self._session.call(
-            "sketch.close",
+            "sketch.end_edit",
             {"sketch_id": handle.value},
         )
         return map_sketch(result)
+
+
+def _sketch_id(result: dict[str, object]) -> str:
+    value = result.get("sketch_id")
+    if not isinstance(value, str) or not value:
+        raise CoreProtocolError("Bridge sketch.create response has no sketch_id.")
+    return value

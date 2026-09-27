@@ -1,5 +1,7 @@
 """High-level KOMPAS part object."""
 
+from __future__ import annotations
+
 from typing import ClassVar
 
 from kompas_bridge_transport import DocumentHandle, PartHandle
@@ -92,8 +94,14 @@ class Part(KompasObject):
         feature = self._session.get_or_create_object(
             Feature,
             data.handle.value,
-            lambda: Feature(self._session, data),
+            lambda: Feature(self._session, self._features, data),
             document_id=self.document_id,
         )
         feature._update(data)
         return feature
+
+    def rebuild(self) -> Part:
+        """Rebuild this part after feature changes."""
+        self._ensure_usable()
+        self._features.rebuild(self._handle)
+        return self

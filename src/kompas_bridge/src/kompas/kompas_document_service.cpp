@@ -10,6 +10,7 @@
 #include <kapi5.h>
 #include <kapi7.h>
 #include <ksConstants.h>
+#include <ksConstants3D.h>
 
 #include "kompas_bridge/kompas/kompas_session.hpp"
 #include "kompas_bridge/kompas/object_registry.hpp"
@@ -225,7 +226,7 @@ std::string KompasDocumentService::get_top_part(std::string_view documentId) {
   return cad_call([&] {
     auto dispatch = document(documentId);
     IKompasDocument doc(dispatch.Get());
-    dispatch.Detach();
+    doc.m_lpDispatch->AddRef();
     const long type = doc.GetDocumentType();
     if (type != ksDocumentPart && type != ksDocumentAssembly) {
       throw ProtocolError(
@@ -233,9 +234,15 @@ std::string KompasDocumentService::get_top_part(std::string_view documentId) {
         "Document is not a 3D part or assembly."
       );
     }
-    IKompasDocument3D doc3d(doc.m_lpDispatch);
-    doc.m_lpDispatch->AddRef();
-    COleDispatchDriver part(doc3d.GetTopPart());
+    doc.SetActive(TRUE);
+    ksDocument3D doc3d(session_.kompas_object().ActiveDocument3D());
+    if (doc3d.m_lpDispatch == nullptr) {
+      throw ProtocolError(
+        "kompas_api_error",
+        "KOMPAS did not expose the active document through API5."
+      );
+    }
+    COleDispatchDriver part(doc3d.GetPart(pTop_Part));
     if (part.m_lpDispatch == nullptr) {
       throw ProtocolError(
         "kompas_api_error",

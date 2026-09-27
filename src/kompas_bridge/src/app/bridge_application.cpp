@@ -11,13 +11,22 @@
 
 #include "kompas_bridge/app/request_dispatcher.hpp"
 #include "kompas_bridge/app/request_loop.hpp"
+#include "kompas_bridge/app/routes/application_routes.hpp"
+#include "kompas_bridge/app/routes/document_routes.hpp"
+#include "kompas_bridge/app/routes/feature_routes.hpp"
+#include "kompas_bridge/app/routes/object_routes.hpp"
+#include "kompas_bridge/app/routes/sketch_routes.hpp"
 #include "kompas_bridge/handlers/application_handler.hpp"
 #include "kompas_bridge/handlers/document_handler.hpp"
+#include "kompas_bridge/handlers/feature_handler.hpp"
 #include "kompas_bridge/handlers/object_handler.hpp"
+#include "kompas_bridge/handlers/sketch_handler.hpp"
 #include "kompas_bridge/kompas/application_service.hpp"
 #include "kompas_bridge/kompas/kompas_application_service.hpp"
 #include "kompas_bridge/kompas/kompas_document_service.hpp"
+#include "kompas_bridge/kompas/kompas_feature_service.hpp"
 #include "kompas_bridge/kompas/kompas_session.hpp"
+#include "kompas_bridge/kompas/kompas_sketch_service.hpp"
 #include "kompas_bridge/kompas/object_registry.hpp"
 #include "kompas_bridge/protocol/codec.hpp"
 #include "kompas_bridge/transport/named_pipe_server.hpp"
@@ -26,14 +35,14 @@
 namespace kompas_bridge {
 namespace {
 
-std::atomic<NamedPipeServer*> activePipeServer{};
+std::atomic<NamedPipeServer *> activePipeServer{};
 
 BOOL WINAPI handle_console_control(DWORD controlType) {
   if (controlType != CTRL_C_EVENT && controlType != CTRL_BREAK_EVENT &&
       controlType != CTRL_CLOSE_EVENT && controlType != CTRL_SHUTDOWN_EVENT) {
     return FALSE;
   }
-  if (NamedPipeServer* server = activePipeServer.load(); server != nullptr) {
+  if (NamedPipeServer *server = activePipeServer.load(); server != nullptr) {
     server->request_stop();
     return TRUE;
   }
@@ -41,8 +50,8 @@ BOOL WINAPI handle_console_control(DWORD controlType) {
 }
 
 class ConsoleHandlerRegistration {
- public:
-  explicit ConsoleHandlerRegistration(NamedPipeServer& server) {
+public:
+  explicit ConsoleHandlerRegistration(NamedPipeServer &server) {
     activePipeServer = &server;
     if (!SetConsoleCtrlHandler(handle_console_control, TRUE)) {
       activePipeServer = nullptr;
@@ -55,43 +64,30 @@ class ConsoleHandlerRegistration {
     SetConsoleCtrlHandler(handle_console_control, FALSE);
   }
 
-  ConsoleHandlerRegistration(const ConsoleHandlerRegistration&) = delete;
-  ConsoleHandlerRegistration& operator=(const ConsoleHandlerRegistration&) =
-    delete;
+  ConsoleHandlerRegistration(const ConsoleHandlerRegistration &) = delete;
+  ConsoleHandlerRegistration &
+  operator=(const ConsoleHandlerRegistration &) = delete;
 };
 
 std::wstring utf8_to_wide(std::string_view value) {
-  const int size = MultiByteToWideChar(
-    CP_UTF8,
-    MB_ERR_INVALID_CHARS,
-    value.data(),
-    static_cast<int>(value.size()),
-    nullptr,
-    0
-  );
+  const int size =
+      MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, value.data(),
+                          static_cast<int>(value.size()), nullptr, 0);
   if (size == 0) {
     throw std::invalid_argument("Named Pipe name must be valid UTF-8.");
   }
   std::wstring result(size, L'\0');
-  if (MultiByteToWideChar(
-        CP_UTF8,
-        MB_ERR_INVALID_CHARS,
-        value.data(),
-        static_cast<int>(value.size()),
-        result.data(),
-        size
-      ) == 0) {
+  if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, value.data(),
+                          static_cast<int>(value.size()), result.data(),
+                          size) == 0) {
     throw std::invalid_argument("Named Pipe name must be valid UTF-8.");
   }
   return result;
 }
 
-}  // namespace
+} // namespace
 
-int BridgeApplication::run(
-  int argc,
-  char* argv[]
-) const {
+int BridgeApplication::run(int argc, char *argv[]) const {
   if (argc < 2 || argc > 3) {
     std::cerr << "Usage: kompas_bridge.exe --pipe [pipe_name] | --stdio\n";
     return 2;
@@ -105,62 +101,54 @@ int BridgeApplication::run(
   try {
     KompasSession session;
     ObjectRegistry registry;
-    KompasApplicationService service(
-      session,
-      registry
-    );
+    KompasApplicationService service(session, registry);
     try {
       (void)service.connect(ConnectionPolicy::kAttachOnly);
-    } catch (const ProtocolError& error) {
+    } catch (const ProtocolError &error) {
       if (error.code() != "kompas_not_running") {
         throw;
       }
     }
     ApplicationHandler handler(service);
     ObjectHandler objectHandler(registry);
-    KompasDocumentService documentService(
-      session,
-      registry
-    );
+    KompasDocumentService documentService(session, registry);
     DocumentHandler documentHandler(documentService);
-    RequestDispatcher dispatcher(
-      handler,
-      objectHandler,
-      documentHandler
-    );
+    KompasSketchService sketchService(registry);
+    SketchHandler sketchHandler(sketchService);
+    KompasFeatureService featureService(registry);
+    FeatureHandler featureHandler(featureService);
+    RequestDispatcher dispatcher;
+    register_application_routes(dispatcher, handler);
+    register_object_routes(dispatcher, objectHandler);
+    register_document_routes(dispatcher, documentHandler);
+    register_sketch_routes(dispatcher, sketchHandler);
+    register_feature_routes(dispatcher, featureHandler);
     if (mode == "--stdio") {
       StdioTransport transport;
-      run_request_loop(
-        transport,
-        dispatcher
-      );
+      run_request_loop(transport, dispatcher);
       return 0;
     }
 
-    const std::wstring pipeName = argc == 3
-      ? utf8_to_wide(argv[2])
-      : std::wstring(kDefaultPipeName);
+    const std::wstring pipeName =
+        argc == 3 ? utf8_to_wide(argv[2]) : std::wstring(kDefaultPipeName);
     NamedPipeServer server(pipeName);
     ConsoleHandlerRegistration consoleHandler(server);
     std::wcerr << L"Named Pipe server started: " << server.pipe_name()
                << L"\nPress Ctrl+C to stop.\n";
     while (server.wait_for_client()) {
       try {
-        run_request_loop(
-          server,
-          dispatcher
-        );
-      } catch (const std::exception& error) {
+        run_request_loop(server, dispatcher);
+      } catch (const std::exception &error) {
         std::cerr << "Named Pipe client disconnected: " << error.what() << '\n';
       }
       server.disconnect_client();
     }
     std::cerr << "Named Pipe server stopped.\n";
     return 0;
-  } catch (const std::exception& error) {
+  } catch (const std::exception &error) {
     std::cerr << "Bridge stopped: " << error.what() << '\n';
     return 1;
   }
 }
 
-}  // namespace kompas_bridge
+} // namespace kompas_bridge

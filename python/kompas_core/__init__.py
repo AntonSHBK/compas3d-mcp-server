@@ -26,11 +26,13 @@ from kompas_core.features import (
 )
 from kompas_core.objects import KompasObject, ObjectInfo
 from kompas_core.parts import Part
-from kompas_core.sketches import LineSegment, Point2D, Sketch, SketchPlane, SketchState
+from kompas_core.recipes import create_cube
+from kompas_core.sketches import Circle, LineSegment, Point2D, Sketch, SketchPlane, SketchState
 
 __all__ = [
     "ApplicationStatus",
     "BooleanOperation",
+    "Circle",
     "CoreBridgeError",
     "CoreConnectionError",
     "CoreError",
@@ -60,4 +62,5 @@ __all__ = [
     "SketchPlane",
     "SketchState",
     "connect",
+    "create_cube",
 ]

@@ -1,7 +1,6 @@
 #include "kompas_bridge/app/request_dispatcher.hpp"
-#include "kompas_bridge/handlers/application_handler.hpp"
+#include "kompas_bridge/app/routes/object_routes.hpp"
 #include "kompas_bridge/handlers/object_handler.hpp"
-#include "kompas_bridge/kompas/application_service.hpp"
 #include "kompas_bridge/kompas/object_registry.hpp"
 #include "kompas_bridge/protocol/codec.hpp"
 
@@ -53,16 +52,6 @@ class FakeUnknown final : public IUnknown {
   int& destroyed_;
 };
 
-class UnusedApplicationService final : public kompas_bridge::ApplicationService {
- public:
-  kompas_bridge::ApplicationStatus get_status() override { return {}; }
-  kompas_bridge::ApplicationStatus connect(
-      kompas_bridge::ConnectionPolicy) override {
-    return {};
-  }
-  void disconnect() override {}
-};
-
 std::string object_request(std::string_view method, std::string_view handle) {
   return nlohmann::json{{"protocol_version", 1},
                         {"id", "test"},
@@ -94,10 +83,9 @@ int main() {
   check(sketch.starts_with("sketch_"));
   check(feature.starts_with("feat_"));
 
-  UnusedApplicationService service;
-  kompas_bridge::ApplicationHandler applicationHandler(service);
   kompas_bridge::ObjectHandler objectHandler(registry);
-  kompas_bridge::RequestDispatcher dispatcher(applicationHandler, objectHandler);
+  kompas_bridge::RequestDispatcher dispatcher;
+  kompas_bridge::register_object_routes(dispatcher, objectHandler);
   const auto first = dispatcher.dispatch(object_request("object.get_info", sketch));
   const auto second = dispatcher.dispatch(object_request("object.get_info", sketch));
   check(first.ok && second.ok);

@@ -69,10 +69,10 @@ class FakeDocuments final : public kompas_bridge::DocumentService {
   std::string closed;
 };
 
-void invalid(kompas_bridge::DocumentHandler& handler, std::string_view method,
-             const nlohmann::json& params) {
+template <typename Action>
+void invalid(Action&& action) {
   try {
-    (void)handler.handle(method, params);
+    action();
   } catch (const kompas_bridge::ProtocolError& error) {
     check(error.code() == "invalid_params");
     return;
@@ -85,27 +85,29 @@ void invalid(kompas_bridge::DocumentHandler& handler, std::string_view method,
 int main() {
   FakeDocuments service;
   kompas_bridge::DocumentHandler handler(service);
-  const auto created = handler.handle("document.create_3d", {{"visible", true}});
+  const auto created = handler.create_3d({{"visible", true}});
   check(created["document_id"] == "doc_1" && created["part_id"] == "part_1");
   check(created["is_new"] == true && created["file_path"].is_null());
-  check(handler.handle("document.list", nlohmann::json::object())["documents"].size() == 1);
-  check(handler.handle("document.get_active", nlohmann::json::object())["document_id"] == "doc_1");
-  const auto opened = handler.handle("document.open", {{"file_path", "D:/test.m3d"},
-                                                       {"visible", false},
-                                                       {"read_only", true}});
+  check(handler.list(nlohmann::json::object())["documents"].size() == 1);
+  check(handler.get_active(nlohmann::json::object())["document_id"] == "doc_1");
+  const auto opened = handler.open({{"file_path", "D:/test.m3d"},
+                                    {"visible", false},
+                                    {"read_only", true}});
   check(opened["document_id"] == "doc_2" && opened["is_new"] == false);
   check(!service.lastVisible && opened["read_only"] == true);
-  check(handler.handle("document.activate", {{"document_id", "doc_2"}})["active"] == true);
-  check(handler.handle("document.activate", {{"document_id", "doc_1"}})["document_id"] == "doc_1");
-  check(handler.handle("document.get_top_part", {{"document_id", "doc_1"}})["part_id"] == "part_1");
-  check(handler.handle("document.save", {{"document_id", "doc_1"}})["document_id"] == "doc_1");
-  check(handler.handle("document.save_as", {{"document_id", "doc_1"},
-                                                  {"file_path", "D:/saved.m3d"},
-                                                  {"overwrite", true}})["file_path"] == "D:/saved.m3d");
+  check(handler.activate({{"document_id", "doc_2"}})["active"] == true);
+  check(handler.activate({{"document_id", "doc_1"}})["document_id"] == "doc_1");
+  check(handler.get_top_part({{"document_id", "doc_1"}})["part_id"] == "part_1");
+  check(handler.save({{"document_id", "doc_1"}})["document_id"] == "doc_1");
+  check(handler.save_as({{"document_id", "doc_1"},
+                         {"file_path", "D:/saved.m3d"},
+                         {"overwrite", true}})["file_path"] == "D:/saved.m3d");
   check(service.lastOverwrite);
-  check(handler.handle("document.close", {{"document_id", "doc_2"}})["closed"] == true);
+  check(handler.close({{"document_id", "doc_2"}})["closed"] == true);
   check(service.closed == "doc_2" && !service.lastDiscard);
-  invalid(handler, "document.create_3d", {{"visible", "yes"}});
-  invalid(handler, "document.open", {{"visible", true}});
-  invalid(handler, "document.close", {{"document_id", "doc_1"}, {"unexpected", 1}});
+  invalid([&] { (void)handler.create_3d({{"visible", "yes"}}); });
+  invalid([&] { (void)handler.open({{"visible", true}}); });
+  invalid([&] {
+    (void)handler.close({{"document_id", "doc_1"}, {"unexpected", 1}});
+  });
 }

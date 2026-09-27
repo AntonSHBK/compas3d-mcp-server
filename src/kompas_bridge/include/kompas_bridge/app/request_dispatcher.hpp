@@ -1,31 +1,29 @@
 #pragma once
 
+#include <functional>
+#include <string>
 #include <string_view>
+#include <unordered_map>
+
+#include <nlohmann/json.hpp>
 
 #include "kompas_bridge/protocol/response.hpp"
 
 namespace kompas_bridge {
-class ApplicationHandler;
-class ObjectHandler;
-class DocumentHandler;
 
-/** @brief Проверяет JSON-запрос и направляет его нужному обработчику. */
+/** @brief Routes validated protocol requests to registered callbacks. */
 class RequestDispatcher {
  public:
-  RequestDispatcher(
-    ApplicationHandler& applicationHandler,
-    ObjectHandler& objectHandler,
-    DocumentHandler& documentHandler
-  );
-  RequestDispatcher(
-    ApplicationHandler& applicationHandler,
-    ObjectHandler& objectHandler
-  );
+  using Route =
+    std::function<nlohmann::json(const nlohmann::json& params)>;
+
+  /** @brief Registers one unique protocol method. */
+  void add_route(std::string_view method, Route route);
+
   [[nodiscard]] Response dispatch(std::string_view payload) const;
 
  private:
-  ApplicationHandler& applicationHandler_;
-  ObjectHandler& objectHandler_;
-  DocumentHandler* documentHandler_;
+  std::unordered_map<std::string, Route> routes_;
 };
+
 }  // namespace kompas_bridge

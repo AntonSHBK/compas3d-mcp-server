@@ -55,11 +55,17 @@ def feature_result(
     feature_id: str = "feat_1",
     document_id: str = "doc_1",
     kind: str = "extrusion",
+    distance: float = 50.0,
+    direction: str = "forward",
+    operation: str = "new_body",
 ) -> dict[str, object]:
     return {
         "feature_id": feature_id,
         "document_id": document_id,
         "kind": kind,
+        "distance": distance,
+        "direction": direction,
+        "operation": operation,
     }
 
 
