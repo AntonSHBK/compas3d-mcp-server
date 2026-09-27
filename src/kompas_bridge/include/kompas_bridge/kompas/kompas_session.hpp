@@ -2,19 +2,24 @@
 
 #include <memory>
 
+#include "kompas_bridge/kompas/connection_policy.hpp"
+
 class KompasObject;
 namespace kompas_bridge {
 class KompasSession {
  public:
   KompasSession();
   ~KompasSession();
-  KompasSession(const KompasSession &) = delete;
-  KompasSession &operator=(const KompasSession &) = delete;
-  KompasSession(KompasSession &&) = delete;
-  KompasSession &operator=(KompasSession &&) = delete;
-  [[nodiscard]] static KompasSession Connect();
+  KompasSession(const KompasSession&) = delete;
+  KompasSession& operator=(const KompasSession&) = delete;
+  KompasSession(KompasSession&&) = delete;
+  KompasSession& operator=(KompasSession&&) = delete;
+  /** @brief Присоединяет приложение согласно явной политике. */
+  void connect(ConnectionPolicy policy);
+  /** @brief Освобождает COM-ссылку, не закрывая КОМПАС. */
+  void disconnect() noexcept;
   [[nodiscard]] bool is_connected() const noexcept;
-  [[nodiscard]] KompasObject &kompas_object() const;
+  [[nodiscard]] KompasObject& kompas_object() const;
 
  private:
   class Implementation;
