@@ -14,17 +14,23 @@
 #include "kompas_bridge/app/routes/application_routes.hpp"
 #include "kompas_bridge/app/routes/document_routes.hpp"
 #include "kompas_bridge/app/routes/feature_routes.hpp"
+#include "kompas_bridge/app/routes/inspection_routes.hpp"
+#include "kompas_bridge/app/routes/measurement_routes.hpp"
 #include "kompas_bridge/app/routes/object_routes.hpp"
 #include "kompas_bridge/app/routes/sketch_routes.hpp"
 #include "kompas_bridge/handlers/application_handler.hpp"
 #include "kompas_bridge/handlers/document_handler.hpp"
 #include "kompas_bridge/handlers/feature_handler.hpp"
+#include "kompas_bridge/handlers/inspection_handler.hpp"
+#include "kompas_bridge/handlers/measurement_handler.hpp"
 #include "kompas_bridge/handlers/object_handler.hpp"
 #include "kompas_bridge/handlers/sketch_handler.hpp"
 #include "kompas_bridge/kompas/application_service.hpp"
 #include "kompas_bridge/kompas/kompas_application_service.hpp"
 #include "kompas_bridge/kompas/kompas_document_service.hpp"
 #include "kompas_bridge/kompas/kompas_feature_service.hpp"
+#include "kompas_bridge/kompas/kompas_inspection_service.hpp"
+#include "kompas_bridge/kompas/kompas_measurement_service.hpp"
 #include "kompas_bridge/kompas/kompas_session.hpp"
 #include "kompas_bridge/kompas/kompas_sketch_service.hpp"
 #include "kompas_bridge/kompas/object_registry.hpp"
@@ -50,7 +56,7 @@ BOOL WINAPI handle_console_control(DWORD controlType) {
 }
 
 class ConsoleHandlerRegistration {
-public:
+ public:
   explicit ConsoleHandlerRegistration(NamedPipeServer &server) {
     activePipeServer = &server;
     if (!SetConsoleCtrlHandler(handle_console_control, TRUE)) {
@@ -65,8 +71,8 @@ public:
   }
 
   ConsoleHandlerRegistration(const ConsoleHandlerRegistration &) = delete;
-  ConsoleHandlerRegistration &
-  operator=(const ConsoleHandlerRegistration &) = delete;
+  ConsoleHandlerRegistration &operator=(const ConsoleHandlerRegistration &) =
+      delete;
 };
 
 std::wstring utf8_to_wide(std::string_view value) {
@@ -85,7 +91,7 @@ std::wstring utf8_to_wide(std::string_view value) {
   return result;
 }
 
-} // namespace
+}  // namespace
 
 int BridgeApplication::run(int argc, char *argv[]) const {
   if (argc < 2 || argc > 3) {
@@ -117,12 +123,18 @@ int BridgeApplication::run(int argc, char *argv[]) const {
     SketchHandler sketchHandler(sketchService);
     KompasFeatureService featureService(registry);
     FeatureHandler featureHandler(featureService);
+    KompasInspectionService inspectionService(registry);
+    InspectionHandler inspectionHandler(inspectionService);
+    KompasMeasurementService measurementService(registry);
+    MeasurementHandler measurementHandler(measurementService);
     RequestDispatcher dispatcher;
     register_application_routes(dispatcher, handler);
     register_object_routes(dispatcher, objectHandler);
     register_document_routes(dispatcher, documentHandler);
     register_sketch_routes(dispatcher, sketchHandler);
     register_feature_routes(dispatcher, featureHandler);
+    register_inspection_routes(dispatcher, inspectionHandler);
+    register_measurement_routes(dispatcher, measurementHandler);
     if (mode == "--stdio") {
       StdioTransport transport;
       run_request_loop(transport, dispatcher);
@@ -151,4 +163,4 @@ int BridgeApplication::run(int argc, char *argv[]) const {
   }
 }
 
-} // namespace kompas_bridge
+}  // namespace kompas_bridge

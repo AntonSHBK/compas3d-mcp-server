@@ -70,8 +70,8 @@ SketchResult KompasSketchService::create(std::string_view documentId,
       throw ProtocolError("kompas_api_error",
                           "KOMPAS did not create the sketch.");
     }
-    const std::string id = registry_.register_child(
-        ObjectKind::kSketch, documentId, sketch.m_lpDispatch);
+    const std::string id = registry_.register_model_child(
+        ObjectKind::kSketch, documentId, partId, sketch.m_lpDispatch);
     metadata_[id] = {.documentId = std::string(documentId),
                      .partId = std::string(partId),
                      .plane = std::string(plane),
@@ -129,10 +129,8 @@ IDispatch *KompasSketchService::edit_document(std::string_view sketchId) const {
   return found->second.Get();
 }
 
-SketchResult KompasSketchService::add_line(
-  std::string_view sketchId,
-  Point2d start, Point2d end
-) {
+SketchResult KompasSketchService::add_line(std::string_view sketchId,
+                                           Point2d start, Point2d end) {
   return cad_call([&] {
     (void)registry_.get_object(sketchId, ObjectKind::kSketch);
     IDispatch *dispatch = edit_document(sketchId);

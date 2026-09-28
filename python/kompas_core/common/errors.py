@@ -56,6 +56,18 @@ class CoreObjectInvalidatedError(CoreError):
     """A previously available CAD object is no longer valid."""
 
 
+class CoreSelectionError(CoreError):
+    """A CAD selector did not resolve to the requested cardinality."""
+
+
+class CoreSelectionNotFoundError(CoreSelectionError):
+    """A CAD selector matched no objects."""
+
+
+class CoreSelectionAmbiguousError(CoreSelectionError):
+    """A CAD selector matched more than one object where one was required."""
+
+
 @dataclass(eq=False)
 class CoreRemoteError(CoreError):
     """The bridge rejected a valid Core request."""

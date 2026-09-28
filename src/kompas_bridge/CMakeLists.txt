@@ -30,12 +30,16 @@ add_library(kompas_bridge_runtime STATIC
   src/app/routes/application_routes.cpp
   src/app/routes/document_routes.cpp
   src/app/routes/feature_routes.cpp
+  src/app/routes/inspection_routes.cpp
+  src/app/routes/measurement_routes.cpp
   src/app/routes/object_routes.cpp
   src/app/routes/sketch_routes.cpp
   src/handlers/application_handler.cpp
   src/handlers/object_handler.cpp
   src/handlers/document_handler.cpp
   src/handlers/feature_handler.cpp
+  src/handlers/inspection_handler.cpp
+  src/handlers/measurement_handler.cpp
   src/handlers/sketch_handler.cpp
   src/kompas/object_registry.cpp
   src/transport/stdio_transport.cpp
@@ -56,6 +60,8 @@ add_executable(kompas_bridge
   src/kompas/kompas_document_service.cpp
   src/kompas/sketch_service.cpp
   src/kompas/feature_service.cpp
+  src/kompas/inspection_service.cpp
+  src/kompas/measurement_service.cpp
   "${kompas_api5_include_dir}/kapi5.cpp"
   "${kompas_api5_include_dir}/kapi7.cpp"
 )

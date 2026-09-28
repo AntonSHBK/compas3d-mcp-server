@@ -15,6 +15,12 @@ void register_feature_routes(RequestDispatcher &dispatcher,
   dispatcher.add_route(
       methods::kFeatureUpdateExtrusion,
       [&handler](const auto &p) { return handler.update_extrusion(p); });
+  dispatcher.add_route(methods::kPartListFeatures, [&handler](const auto &p) {
+    return handler.list_features(p);
+  });
+  dispatcher.add_route(methods::kFeatureGetInfo, [&handler](const auto &p) {
+    return handler.get_info(p);
+  });
   dispatcher.add_route(methods::kModelRebuild, [&handler](const auto &p) {
     return handler.rebuild(p);
   });

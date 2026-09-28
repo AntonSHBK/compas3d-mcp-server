@@ -16,44 +16,57 @@ struct IUnknown;
 namespace kompas_bridge {
 
 /** @brief Тип зарегистрированного CAD-объекта. */
-enum class ObjectKind { kDocument, kPart, kSketch, kFeature };
+enum class ObjectKind {
+  kDocument,
+  kPart,
+  kSketch,
+  kFeature,
+  kBody,
+  kFace,
+  kEdge,
+};
 
 /** @brief Публичные метаданные без COM-указателей. */
 struct ObjectInfo {
   std::string handle;
   ObjectKind kind{};
   std::optional<std::string> documentId;
+  std::optional<std::string> partId;
+  std::uint64_t revision{};
 };
 
 /** @brief Владеет COM-ссылками и opaque handles одного bridge-процесса. */
 class ObjectRegistry {
- public:
+public:
   ObjectRegistry();
-  ObjectRegistry(const ObjectRegistry&) = delete;
-  ObjectRegistry& operator=(const ObjectRegistry&) = delete;
+  ObjectRegistry(const ObjectRegistry &) = delete;
+  ObjectRegistry &operator=(const ObjectRegistry &) = delete;
 
   /** @brief Регистрирует документ, сохраняя собственную COM-ссылку. */
-  [[nodiscard]] std::string register_document(IUnknown* object);
-  [[nodiscard]] std::string find_or_register_document(IUnknown* object);
+  [[nodiscard]] std::string register_document(IUnknown *object);
+  [[nodiscard]] std::string find_or_register_document(IUnknown *object);
   /** @brief Регистрирует объект, принадлежащий указанному документу. */
-  [[nodiscard]] std::string register_child(
-    ObjectKind kind,
-    std::string_view documentId,
-    IUnknown* object
-  );
-  [[nodiscard]] std::string find_or_register_child(
-    ObjectKind kind,
-    std::string_view documentId,
-    IUnknown* object
-  );
+  [[nodiscard]] std::string register_child(ObjectKind kind,
+                                           std::string_view documentId,
+                                           IUnknown *object);
+  [[nodiscard]] std::string find_or_register_child(ObjectKind kind,
+                                                   std::string_view documentId,
+                                                   IUnknown *object);
+  [[nodiscard]] std::string register_model_child(ObjectKind kind,
+                                                 std::string_view documentId,
+                                                 std::string_view partId,
+                                                 IUnknown *object);
+  [[nodiscard]] std::string
+  find_or_register_model_child(ObjectKind kind, std::string_view documentId,
+                               std::string_view partId, IUnknown *object);
+  [[nodiscard]] std::uint64_t model_revision(std::string_view partId) const;
+  [[nodiscard]] std::uint64_t bump_model_revision(std::string_view partId);
   [[nodiscard]] std::vector<std::string> document_handles() const;
   /** @brief Возвращает метаданные или стабильную ошибку handle. */
   [[nodiscard]] ObjectInfo get_info(std::string_view handle) const;
   /** @brief Даёт временную COM-ссылку внутреннему сервису. */
-  [[nodiscard]] Microsoft::WRL::ComPtr<IUnknown> get_object(
-    std::string_view handle,
-    ObjectKind expectedKind
-  ) const;
+  [[nodiscard]] Microsoft::WRL::ComPtr<IUnknown>
+  get_object(std::string_view handle, ObjectKind expectedKind) const;
   /** @brief Освобождает ссылку и инвалидирует потомков документа. */
   void release(std::string_view handle);
   /** @brief Вызывается при закрытии документа в DocumentService. */
@@ -61,7 +74,7 @@ class ObjectRegistry {
   /** @brief Освобождает все ссылки при смене COM-подключения. */
   void invalidate_all();
 
- private:
+private:
   struct Entry {
     ObjectInfo info;
     Microsoft::WRL::ComPtr<IUnknown> object;
@@ -69,9 +82,9 @@ class ObjectRegistry {
   };
 
   void check_thread() const;
-  [[nodiscard]] Entry& find_entry(std::string_view handle);
-  [[nodiscard]] const Entry& find_entry(std::string_view handle) const;
-  void invalidate_entry(Entry& entry);
+  [[nodiscard]] Entry &find_entry(std::string_view handle);
+  [[nodiscard]] const Entry &find_entry(std::string_view handle) const;
+  void invalidate_entry(Entry &entry);
   void prune_tombstones();
   [[nodiscard]] std::string next_handle(ObjectKind kind);
 
@@ -85,4 +98,4 @@ class ObjectRegistry {
 /** @brief Публичное имя типа объекта. */
 [[nodiscard]] std::string_view object_kind_name(ObjectKind kind);
 
-}  // namespace kompas_bridge
+} // namespace kompas_bridge

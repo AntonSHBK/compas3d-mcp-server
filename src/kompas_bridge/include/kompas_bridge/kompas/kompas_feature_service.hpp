@@ -14,7 +14,10 @@ public:
   get_parameters(std::string_view featureId) override;
   [[nodiscard]] ExtrusionResult update_extrusion(std::string_view featureId,
                                                  double distance) override;
-  void rebuild(std::string_view partId) override;
+  [[nodiscard]] std::vector<FeatureInfo>
+  list_features(std::string_view partId) override;
+  [[nodiscard]] FeatureInfo get_info(std::string_view featureId) override;
+  [[nodiscard]] std::uint64_t rebuild(std::string_view partId) override;
 
 private:
   struct Metadata {

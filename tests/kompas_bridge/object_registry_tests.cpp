@@ -82,6 +82,30 @@ int main() {
   check(part.starts_with("part_"));
   check(sketch.starts_with("sketch_"));
   check(feature.starts_with("feat_"));
+  check(registry.model_revision(part) == 1);
+  auto add_topology = [&](kompas_bridge::ObjectKind kind) {
+    auto* object = new FakeUnknown(destroyed);
+    const std::string handle = registry.register_model_child(
+        kind, document, part, object);
+    object->Release();
+    return handle;
+  };
+  const std::string body = add_topology(kompas_bridge::ObjectKind::kBody);
+  const std::string face = add_topology(kompas_bridge::ObjectKind::kFace);
+  const std::string edge = add_topology(kompas_bridge::ObjectKind::kEdge);
+  check(body.starts_with("body_"));
+  check(face.starts_with("face_"));
+  check(edge.starts_with("edge_"));
+  check(registry.get_info(face).revision == 1);
+  check(registry.bump_model_revision(part) == 2);
+  check(destroyed == 3);
+  try {
+    (void)registry.get_info(face);
+    throw std::runtime_error("Stale topology handle was accepted.");
+  } catch (const kompas_bridge::ProtocolError& error) {
+    check(error.code() == "object_invalidated");
+  }
+  check(registry.get_info(part).revision == 2);
 
   kompas_bridge::ObjectHandler objectHandler(registry);
   kompas_bridge::RequestDispatcher dispatcher;
@@ -94,7 +118,7 @@ int main() {
   check((*second.result)["kind"] == "sketch");
 
   registry.invalidate_document(document);
-  check(destroyed == 4);
+  check(destroyed == 7);
   const auto invalid = dispatcher.dispatch(object_request("object.get_info", sketch));
   check(!invalid.ok && invalid.error->code == "object_invalidated");
   const auto unknown = dispatcher.dispatch(object_request("object.get_info", "part_missing"));
@@ -120,7 +144,7 @@ int main() {
   const auto releaseResponse = dispatcher.dispatch(
       object_request("object.release", another));
   check(releaseResponse.ok && (*releaseResponse.result)["released"] == true);
-  check(destroyed == 5);
+  check(destroyed == 8);
   const auto repeatedRelease = dispatcher.dispatch(
       object_request("object.release", another));
   check(!repeatedRelease.ok &&
@@ -147,5 +171,5 @@ int main() {
   check(!invalidAfterDisconnect.ok &&
         invalidAfterDisconnect.error->code == "object_invalidated");
   otherSession.invalidate_all();
-  check(destroyed == 8);
+  check(destroyed == 11);
 }

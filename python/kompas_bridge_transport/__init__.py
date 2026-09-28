@@ -22,8 +22,11 @@ from kompas_bridge_transport.errors import (
 )
 from kompas_bridge_transport.handles import (
     BridgeHandle,
+    BodyHandle,
     DocumentHandle,
     FeatureHandle,
+    FaceHandle,
+    EdgeHandle,
     PartHandle,
     SketchHandle,
 )
@@ -36,6 +39,7 @@ __all__ = [
     "BridgeConnectionError",
     "BridgeError",
     "BridgeHandle",
+    "BodyHandle",
     "BridgeInternalError",
     "BridgeProcessError",
     "BridgeProcessManager",
@@ -44,6 +48,8 @@ __all__ = [
     "BridgeTimeoutError",
     "DocumentHandle",
     "FeatureHandle",
+    "FaceHandle",
+    "EdgeHandle",
     "InvalidParamsError",
     "InvalidRequestError",
     "KompasApiError",

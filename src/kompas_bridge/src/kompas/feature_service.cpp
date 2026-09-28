@@ -11,6 +11,36 @@
 
 namespace kompas_bridge {
 namespace {
+std::string to_utf8(const CString &value) {
+  if (value.IsEmpty()) {
+    return {};
+  }
+  const int size =
+      WideCharToMultiByte(CP_UTF8, 0, value.GetString(), value.GetLength(),
+                          nullptr, 0, nullptr, nullptr);
+  if (size <= 0) {
+    throw ProtocolError("kompas_api_error",
+                        "Feature name is not valid UTF-16.");
+  }
+  std::string result(static_cast<std::size_t>(size), '\0');
+  WideCharToMultiByte(CP_UTF8, 0, value.GetString(), value.GetLength(),
+                      result.data(), size, nullptr, nullptr);
+  return result;
+}
+
+std::string_view feature_type_name(short type) {
+  switch (type) {
+  case o3d_baseExtrusion:
+  case o3d_bossExtrusion:
+  case o3d_cutExtrusion:
+    return "extrusion";
+  case o3d_sketch:
+    return "sketch";
+  default:
+    return "unknown";
+  }
+}
+
 Microsoft::WRL::ComPtr<IDispatch> object_dispatch(ObjectRegistry &registry,
                                                   std::string_view handle,
                                                   ObjectKind kind) {
@@ -171,8 +201,8 @@ ExtrusionResult KompasFeatureService::extrude(
       throw ProtocolError("kompas_api_error",
                           "KOMPAS did not create extrusion.");
     }
-    const std::string featureId = registry_.register_child(
-        ObjectKind::kFeature, documentId, entity.m_lpDispatch);
+    const std::string featureId = registry_.register_model_child(
+        ObjectKind::kFeature, documentId, partId, entity.m_lpDispatch);
     metadata_[featureId] = {.partId = std::string(partId),
                             .sketchId = std::string(sketchId),
                             .operation = parameters.operation};
@@ -247,14 +277,104 @@ KompasFeatureService::update_extrusion(std::string_view featureId,
   });
 }
 
-void KompasFeatureService::rebuild(std::string_view partId) {
-  cad_call([&] {
+std::vector<FeatureInfo>
+KompasFeatureService::list_features(std::string_view partId) {
+  return cad_call([&] {
+    const auto partInfo = registry_.get_info(partId);
+    const std::string documentId = partInfo.documentId.value_or("");
+    auto dispatch = object_dispatch(registry_, partId, ObjectKind::kPart);
+    ksPart part(dispatch.Detach());
+    ksFeature root(part.GetFeature());
+    if (root.m_lpDispatch == nullptr) {
+      throw ProtocolError("kompas_api_error",
+                          "KOMPAS did not return the feature tree.");
+    }
+    ksFeatureCollection collection(root.SubFeatureCollection(TRUE, FALSE));
+    std::vector<FeatureInfo> result;
+    if (collection.m_lpDispatch == nullptr) {
+      return result;
+    }
+    collection.refresh();
+    const long count = collection.GetCount();
+    result.reserve(static_cast<std::size_t>(count));
+    for (long index = 0; index < count; ++index) {
+      ksFeature feature(collection.GetByIndex(index));
+      if (feature.m_lpDispatch == nullptr) {
+        continue;
+      }
+      ksEntity object(feature.GetObject());
+      if (object.m_lpDispatch == nullptr) {
+        continue;
+      }
+      const std::string featureId = registry_.find_or_register_model_child(
+          ObjectKind::kFeature, documentId, partId, object.m_lpDispatch);
+      std::optional<std::string> ownerId;
+      ksFeature owner(feature.GetOwnerFeature());
+      if (owner.m_lpDispatch != nullptr) {
+        ksEntity ownerObject(owner.GetObject());
+        if (ownerObject.m_lpDispatch != nullptr) {
+          ownerId = registry_.find_or_register_model_child(
+              ObjectKind::kFeature, documentId, partId,
+              ownerObject.m_lpDispatch);
+        }
+      }
+      result.push_back(
+          {.featureId = featureId,
+           .documentId = documentId,
+           .partId = std::string(partId),
+           .name = to_utf8(feature.GetName()),
+           .featureType = std::string(feature_type_name(feature.GetType())),
+           .excluded = feature.GetExcluded() != FALSE,
+           .valid = feature.IsValid() != FALSE,
+           .ownerFeatureId = std::move(ownerId),
+           .updateStamp = feature.GetUpdateStamp()});
+    }
+    return result;
+  });
+}
+
+FeatureInfo KompasFeatureService::get_info(std::string_view featureId) {
+  return cad_call([&] {
+    const auto info = registry_.get_info(featureId);
+    auto dispatch = object_dispatch(registry_, featureId, ObjectKind::kFeature);
+    ksEntity entity(dispatch.Detach());
+    ksFeature feature(entity.GetFeature());
+    if (feature.m_lpDispatch == nullptr || !info.documentId || !info.partId) {
+      throw ProtocolError("kompas_api_error",
+                          "KOMPAS did not return feature information.");
+    }
+    std::optional<std::string> ownerId;
+    ksFeature owner(feature.GetOwnerFeature());
+    if (owner.m_lpDispatch != nullptr) {
+      ksEntity ownerObject(owner.GetObject());
+      if (ownerObject.m_lpDispatch != nullptr) {
+        ownerId = registry_.find_or_register_model_child(
+            ObjectKind::kFeature, *info.documentId, *info.partId,
+            ownerObject.m_lpDispatch);
+      }
+    }
+    return FeatureInfo{.featureId = std::string(featureId),
+                       .documentId = *info.documentId,
+                       .partId = *info.partId,
+                       .name = to_utf8(feature.GetName()),
+                       .featureType =
+                           std::string(feature_type_name(feature.GetType())),
+                       .excluded = feature.GetExcluded() != FALSE,
+                       .valid = feature.IsValid() != FALSE,
+                       .ownerFeatureId = std::move(ownerId),
+                       .updateStamp = feature.GetUpdateStamp()};
+  });
+}
+
+std::uint64_t KompasFeatureService::rebuild(std::string_view partId) {
+  return cad_call([&] {
     auto dispatch = object_dispatch(registry_, partId, ObjectKind::kPart);
     ksPart part(dispatch.Detach());
     if (!part.RebuildModel()) {
       throw ProtocolError("kompas_api_error",
                           "KOMPAS did not rebuild the model.");
     }
+    return registry_.bump_model_revision(partId);
   });
 }
 } // namespace kompas_bridge

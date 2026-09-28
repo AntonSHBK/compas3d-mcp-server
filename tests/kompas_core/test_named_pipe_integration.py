@@ -9,7 +9,7 @@ from uuid import uuid4
 import pytest
 
 from kompas_bridge_transport import BridgeClient
-from kompas_core import CoreNoActiveDocumentError, CoreRemoteError, connect
+from kompas_core import CoreNoActiveDocumentError, CoreRemoteError, connect, create_cube
 from kompas_mcp.config.settings import BridgeSettings
 
 
@@ -49,10 +49,45 @@ def test_core_document_chain_through_real_bridge() -> None:
             documents = application.documents()
             try:
                 document = application.active_document()
+            except CoreNoActiveDocumentError:
+                document = application.create_document_3d(visible=True)
+                create_cube(document.top_part(), 50.0)
+            try:
                 part = document.top_part()
                 info = part.get_info()
-            except CoreNoActiveDocumentError:
-                pytest.skip("KOMPAS-3D has no active document.")
+                features = part.features()
+                if features:
+                    feature_info = features.first().refresh_info().info
+                bodies = part.bodies()
+                faces = part.faces()
+                bounding_box = part.bounding_box()
+                distance = None
+                angle = None
+                if len(faces) >= 2:
+                    distance = application.measurements.distance(
+                        faces.all()[0], faces.all()[1]
+                    )
+                planar_faces = [
+                    face for face in faces if face.geometry.normal is not None
+                ]
+                for index, first in enumerate(planar_faces):
+                    for second in planar_faces[index + 1 :]:
+                        normal1 = first.geometry.normal
+                        normal2 = second.geometry.normal
+                        assert normal1 is not None and normal2 is not None
+                        dot = (
+                            normal1.x * normal2.x
+                            + normal1.y * normal2.y
+                            + normal1.z * normal2.z
+                        )
+                        if abs(dot) < 0.5:
+                            angle = application.measurements.angle(first, second)
+                            break
+                    if angle is not None:
+                        break
+                if bodies:
+                    body_faces = bodies.first().faces()
+                    mass_properties = part.mass_properties()
             except CoreRemoteError as error:
                 pytest.skip(f"Active document does not expose a top part: {error}")
 
@@ -61,3 +96,16 @@ def test_core_document_chain_through_real_bridge() -> None:
     assert document.id.startswith("doc_")
     assert part.id.startswith("part_")
     assert info.id == part.id
+    assert isinstance(features.all(), list)
+    if features:
+        assert feature_info.name
+    assert isinstance(bodies.all(), list)
+    assert isinstance(faces.all(), list)
+    assert bounding_box.max.z >= bounding_box.min.z
+    if distance is not None:
+        assert distance.distance_mm >= 0.0
+    if angle is not None:
+        assert 0.0 <= angle.angle_degrees <= 180.0
+    if bodies:
+        assert isinstance(body_faces.all(), list)
+        assert mass_properties.volume_mm3 >= 0.0

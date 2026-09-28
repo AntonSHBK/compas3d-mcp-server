@@ -49,3 +49,24 @@ class FeatureHandle(BridgeHandle):
     """Opaque feature handle."""
 
     prefix: ClassVar[str] = "feat"
+
+
+@dataclass(frozen=True, slots=True)
+class BodyHandle(BridgeHandle):
+    """Opaque result-body handle."""
+
+    prefix: ClassVar[str] = "body"
+
+
+@dataclass(frozen=True, slots=True)
+class FaceHandle(BridgeHandle):
+    """Opaque model-face handle tied to a model revision."""
+
+    prefix: ClassVar[str] = "face"
+
+
+@dataclass(frozen=True, slots=True)
+class EdgeHandle(BridgeHandle):
+    """Opaque model-edge handle tied to a model revision."""
+
+    prefix: ClassVar[str] = "edge"

@@ -29,6 +29,20 @@ class FeatureKind(StrEnum):
     """Kinds of feature currently represented by Core."""
 
     EXTRUSION = "extrusion"
+    SKETCH = "sketch"
+    UNKNOWN = "unknown"
+
+
+@dataclass(frozen=True, slots=True)
+class FeatureInfo:
+    """Inspection data for one item in the part feature tree."""
+
+    name: str
+    feature_type: str
+    excluded: bool
+    valid: bool
+    owner_feature_id: str | None = None
+    update_stamp: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,3 +81,4 @@ class FeatureData:
     handle: FeatureHandle
     document_handle: DocumentHandle
     state: FeatureState
+    info: FeatureInfo | None = None

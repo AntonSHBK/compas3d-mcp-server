@@ -15,3 +15,17 @@ add_executable(kompas_bridge_document_handler_tests document_handler_tests.cpp)
 target_link_libraries(kompas_bridge_document_handler_tests PRIVATE kompas_bridge_runtime)
 add_test(NAME kompas_bridge_document_handler_tests
   COMMAND kompas_bridge_document_handler_tests)
+
+add_executable(kompas_bridge_inspection_handler_tests
+  inspection_handler_tests.cpp)
+target_link_libraries(kompas_bridge_inspection_handler_tests
+  PRIVATE kompas_bridge_runtime)
+add_test(NAME kompas_bridge_inspection_handler_tests
+  COMMAND kompas_bridge_inspection_handler_tests)
+
+add_executable(kompas_bridge_measurement_handler_tests
+  measurement_handler_tests.cpp)
+target_link_libraries(kompas_bridge_measurement_handler_tests
+  PRIVATE kompas_bridge_runtime)
+add_test(NAME kompas_bridge_measurement_handler_tests
+  COMMAND kompas_bridge_measurement_handler_tests)

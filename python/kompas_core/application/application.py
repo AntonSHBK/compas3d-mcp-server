@@ -12,6 +12,7 @@ from kompas_core.common.validation import validate_file_path
 from kompas_core.documents.document import Document
 from kompas_core.documents.models import DocumentData
 from kompas_core.documents.service import DocumentService
+from kompas_core.measurements import Measurements
 
 
 class KompasApplication:
@@ -20,10 +21,16 @@ class KompasApplication:
     def __init__(self, session: CoreSession) -> None:
         self._session = session
         self._documents = DocumentService(session)
+        self._measurements = Measurements(session)
 
     @property
     def is_closed(self) -> bool:
         return self._session.is_closed
+
+    @property
+    def measurements(self) -> Measurements:
+        """Return measurement operations bound to this Core session."""
+        return self._measurements
 
     def status(self) -> ApplicationStatus:
         """Return the current KOMPAS connection status."""

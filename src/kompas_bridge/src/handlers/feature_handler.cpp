@@ -1,8 +1,9 @@
 #include "kompas_bridge/handlers/feature_handler.hpp"
 
+#include <string>
+
 #include "kompas_bridge/kompas/feature_service.hpp"
 #include "kompas_bridge/protocol/codec.hpp"
-#include <string>
 
 namespace kompas_bridge {
 namespace {
@@ -52,6 +53,19 @@ nlohmann::json to_json(const ExtrusionResult &value) {
           {"direction", direction_name(value.parameters.direction)},
           {"operation", operation_name(value.parameters.operation)}};
 }
+nlohmann::json to_json(const FeatureInfo &value) {
+  return {{"feature_id", value.featureId},
+          {"document_id", value.documentId},
+          {"part_id", value.partId},
+          {"name", value.name},
+          {"feature_type", value.featureType},
+          {"excluded", value.excluded},
+          {"valid", value.valid},
+          {"owner_feature_id", value.ownerFeatureId
+                                   ? nlohmann::json(*value.ownerFeatureId)
+                                   : nlohmann::json(nullptr)},
+          {"update_stamp", value.updateStamp}};
+}
 } // namespace
 
 FeatureHandler::FeatureHandler(FeatureService &service) : service_(service) {}
@@ -76,9 +90,21 @@ FeatureHandler::update_extrusion(const nlohmann::json &params) const {
       service_.update_extrusion(required_string(params, "feature_id"),
                                 required_number(params, "distance")));
 }
+nlohmann::json
+FeatureHandler::list_features(const nlohmann::json &params) const {
+  const std::string partId = required_string(params, "part_id");
+  nlohmann::json features = nlohmann::json::array();
+  for (const auto &feature : service_.list_features(partId)) {
+    features.push_back(to_json(feature));
+  }
+  return {{"part_id", partId}, {"features", std::move(features)}};
+}
+nlohmann::json FeatureHandler::get_info(const nlohmann::json &params) const {
+  return to_json(service_.get_info(required_string(params, "feature_id")));
+}
 nlohmann::json FeatureHandler::rebuild(const nlohmann::json &params) const {
   const std::string partId = required_string(params, "part_id");
-  service_.rebuild(partId);
-  return {{"part_id", partId}, {"rebuilt", true}};
+  const auto revision = service_.rebuild(partId);
+  return {{"part_id", partId}, {"rebuilt", true}, {"revision", revision}};
 }
 } // namespace kompas_bridge

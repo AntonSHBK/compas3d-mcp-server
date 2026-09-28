@@ -10,6 +10,9 @@ public:
   get_parameters(const nlohmann::json &params) const;
   [[nodiscard]] nlohmann::json
   update_extrusion(const nlohmann::json &params) const;
+  [[nodiscard]] nlohmann::json
+  list_features(const nlohmann::json &params) const;
+  [[nodiscard]] nlohmann::json get_info(const nlohmann::json &params) const;
   [[nodiscard]] nlohmann::json rebuild(const nlohmann::json &params) const;
 
 private:

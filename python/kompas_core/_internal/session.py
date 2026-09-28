@@ -33,6 +33,7 @@ class CoreSession:
         )
         self._document_children: dict[str, set[str]] = {}
         self._invalidated_handles: set[str] = set()
+        self._part_topology: dict[str, set[str]] = {}
 
     @property
     def is_closed(self) -> bool:
@@ -79,6 +80,14 @@ class CoreSession:
         """Invalidate a document and every known child facade."""
         self._invalidated_handles.add(document_id)
         self._invalidated_handles.update(self._document_children.pop(document_id, set()))
+
+    def register_topology(self, part_id: str, handle: str) -> None:
+        """Associate a revision-sensitive topology handle with its part."""
+        self._part_topology.setdefault(part_id, set()).add(handle)
+
+    def invalidate_topology(self, part_id: str) -> None:
+        """Invalidate cached body, face and edge facades after a rebuild."""
+        self._invalidated_handles.update(self._part_topology.pop(part_id, set()))
 
     def is_invalidated(self, handle: str) -> bool:
         return handle in self._invalidated_handles
